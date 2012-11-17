@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" Name="ProjectConfigSync v1.0" Language="1033" Version="1.0.0.0" Manufacturer="BitCollectors" UpgradeCode="d869754a-87bb-4033-9d2a-bc538eaa5847">
+    <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFilesFolder">
+        <Directory Id="INSTALLFOLDER" Name="ProjectConfigSync" />
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="Project Config Sync"/>
+      </Directory>
+    </Directory>
+
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <Component Id="ProductComponent">
+        <File Source="$(var.ProjectConfigSync.TargetPath)" />
+      </Component>
+    </ComponentGroup>
+
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ApplicationShortcut">
+        <Shortcut Id="ApplicationStartMenuShortcut"
+                       Name="Project Config Sync"
+                     Description="Syncs Visual Studio SLN and CSPROJ Configurations"
+                      Target="[INSTALLFOLDER]ProjectConfigSync.exe"
+                            WorkingDirectory="INSTALLFOLDER"/>
+        <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
+        <RegistryValue Root="HKCU" Key="Software\Microsoft\ProjectConfigSync" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="Complete" Title="ProjectConfigSync" Description="ProjectConfigSync" Display="expand" Level="1" ConfigurableDirectory="INSTALLFOLDER">
+      <Feature Id="MainProgram" Title="Program" Description="The main executable." Level="1">
+        <ComponentGroupRef Id="ProductComponents" />
+        <ComponentRef Id="ApplicationShortcut" />
+      </Feature>
+    </Feature>
+
+    <UIRef Id="WixUI_Mondo" />
+    <UIRef Id="WixUI_ErrorProgressText" />
+    
+  </Product>
+</Wix>

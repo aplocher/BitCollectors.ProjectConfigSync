@@ -1,0 +1,8 @@
+C:\Users\Adam\Dropbox\Projects2\ProjectConfigSync\ProjectConfigSync.Setup\bin\Debug\ProjectConfigSync.Setup.msi
+C:\Users\Adam\Dropbox\Projects2\ProjectConfigSync\ProjectConfigSync.Setup\bin\Debug\ProjectConfigSync.Setup.wixpdb
+obj\Debug\Product.wixobj
+obj\Debug\ProjectConfigSync.Setup.wixproj.BindContentsFileListnull.txt
+obj\Debug\ProjectConfigSync.Setup.wixproj.BindOutputsFileListnull.txt
+obj\Debug\ProjectConfigSync.Setup.wixproj.BindBuiltOutputsFileListnull.txt
+C:\Users\adamp.LM01\Dropbox\Projects2\ProjectConfigSync\ProjectConfigSync.Setup\bin\Debug\ProjectConfigSync.Setup.msi
+C:\Users\adamp.LM01\Dropbox\Projects2\ProjectConfigSync\ProjectConfigSync.Setup\bin\Debug\ProjectConfigSync.Setup.wixpdb

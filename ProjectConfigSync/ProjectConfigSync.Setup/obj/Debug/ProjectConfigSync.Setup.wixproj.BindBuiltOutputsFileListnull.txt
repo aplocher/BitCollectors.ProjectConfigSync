@@ -1,0 +1,2 @@
+C:\Users\Adam\Dropbox\Projects2\ProjectConfigSync\ProjectConfigSync.Setup\bin\Debug\ProjectConfigSync.Setup.msi
+C:\Users\Adam\Dropbox\Projects2\ProjectConfigSync\ProjectConfigSync.Setup\bin\Debug\ProjectConfigSync.Setup.wixpdb

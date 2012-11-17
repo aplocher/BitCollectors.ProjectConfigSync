@@ -1,0 +1,18 @@
+c:\users\adamp.lm01\documents\visual studio 2010\Projects\ProjectSettingsSync\ProjectSettingsSync\bin\Debug\ProjectSettingsSync.exe
+c:\users\adamp.lm01\documents\visual studio 2010\Projects\ProjectSettingsSync\ProjectSettingsSync\bin\Debug\ProjectSettingsSync.pdb
+c:\users\adamp.lm01\documents\visual studio 2010\Projects\ProjectSettingsSync\ProjectSettingsSync\obj\x86\Debug\ProjectSettingsSync.csprojResolveAssemblyReference.cache
+c:\users\adamp.lm01\documents\visual studio 2010\Projects\ProjectSettingsSync\ProjectSettingsSync\obj\x86\Debug\ProjectSettingsSync.Properties.Resources.resources
+c:\users\adamp.lm01\documents\visual studio 2010\Projects\ProjectSettingsSync\ProjectSettingsSync\obj\x86\Debug\ProjectSettingsSync.csproj.GenerateResource.Cache
+c:\users\adamp.lm01\documents\visual studio 2010\Projects\ProjectSettingsSync\ProjectSettingsSync\obj\x86\Debug\ProjectSettingsSync.exe
+c:\users\adamp.lm01\documents\visual studio 2010\Projects\ProjectSettingsSync\ProjectSettingsSync\obj\x86\Debug\ProjectSettingsSync.pdb
+c:\users\adamp.lm01\documents\visual studio 2010\Projects\ProjectSettingsSync\ProjectSettingsSync\obj\x86\Debug\ProjectSettingsSync.Form1.resources
+C:\Users\Adam\Desktop\ProjectSettingsSync\ProjectSettingsSync\obj\x86\Debug\ProjectSettingsSync.exe
+C:\Users\Adam\Desktop\ProjectSettingsSync\ProjectSettingsSync\obj\x86\Debug\ProjectSettingsSync.pdb
+C:\Users\Adam\Desktop\ProjectSettingsSync\ProjectSettingsSync\bin\Debug\ProjectSettingsSync.exe
+C:\Users\Adam\Desktop\ProjectSettingsSync\ProjectSettingsSync\bin\Debug\ProjectSettingsSync.pdb
+C:\Users\Adam\Desktop\ProjectSettingsSync\ProjectSettingsSync\obj\x86\Debug\ProjectSettingsSync.csprojResolveAssemblyReference.cache
+C:\Users\Adam\Desktop\ProjectSettingsSync\ProjectSettingsSync\obj\x86\Debug\ProjectSettingsSync.Form1.resources
+C:\Users\Adam\Desktop\ProjectSettingsSync\ProjectSettingsSync\obj\x86\Debug\ProjectSettingsSync.Properties.Resources.resources
+C:\Users\Adam\Desktop\ProjectSettingsSync\ProjectSettingsSync\obj\x86\Debug\ProjectSettingsSync.csproj.GenerateResource.Cache
+C:\Users\Adam\Desktop\ProjectConfigSync\ProjectSettingsSync\obj\x86\Debug\ProjectSettingsSync.exe
+C:\Users\Adam\Desktop\ProjectConfigSync\ProjectSettingsSync\obj\x86\Debug\ProjectSettingsSync.pdb
