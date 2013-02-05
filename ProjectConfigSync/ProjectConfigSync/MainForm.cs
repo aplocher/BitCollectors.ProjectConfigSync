@@ -172,6 +172,9 @@ namespace ProjectConfigSync
 
         private void OpenCsProj(string filename)
         {
+            if (!File.Exists(filename) || !filename.ToLower().EndsWith(".csproj"))
+                return;
+
             FileInfo projFileInfo = new FileInfo(filename);
 
             _xmlDocument = new XmlDocument();

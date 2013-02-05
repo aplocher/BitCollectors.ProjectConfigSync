@@ -28,3 +28,10 @@ C:\Users\Adam\Dropbox\Projects2\ProjectConfigSync\ProjectConfigSync\obj\x86\Debu
 C:\Users\Adam\Dropbox\Projects2\ProjectConfigSync\ProjectConfigSync\bin\Debug\ProjectConfigSync.exe
 C:\Users\Adam\Dropbox\Projects2\ProjectConfigSync\ProjectConfigSync\bin\Debug\ProjectConfigSync.pdb
 C:\Users\Adam\Dropbox\Projects2\ProjectConfigSync\ProjectConfigSync\obj\x86\Debug\ProjectConfigSync.Properties.Resources.resources
+C:\SourceCode\GitRepositories\ProjectConfigSync\ProjectConfigSync\ProjectConfigSync\obj\x86\Debug\ProjectConfigSync.exe
+C:\SourceCode\GitRepositories\ProjectConfigSync\ProjectConfigSync\ProjectConfigSync\obj\x86\Debug\ProjectConfigSync.pdb
+C:\SourceCode\GitRepositories\ProjectConfigSync\ProjectConfigSync\ProjectConfigSync\bin\Debug\ProjectConfigSync.exe
+C:\SourceCode\GitRepositories\ProjectConfigSync\ProjectConfigSync\ProjectConfigSync\bin\Debug\ProjectConfigSync.pdb
+C:\SourceCode\GitRepositories\ProjectConfigSync\ProjectConfigSync\ProjectConfigSync\obj\x86\Debug\ProjectConfigSync.Form1.resources
+C:\SourceCode\GitRepositories\ProjectConfigSync\ProjectConfigSync\ProjectConfigSync\obj\x86\Debug\ProjectConfigSync.Properties.Resources.resources
+C:\SourceCode\GitRepositories\ProjectConfigSync\ProjectConfigSync\ProjectConfigSync\obj\x86\Debug\ProjectConfigSync.csproj.GenerateResource.Cache

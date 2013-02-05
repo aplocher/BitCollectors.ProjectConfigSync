@@ -1,1 +1,1 @@
-C:\Users\Adam\Dropbox\Projects2\ProjectConfigSync\ProjectConfigSync\bin\Debug\ProjectConfigSync.exe
+C:\SourceCode\GitRepositories\ProjectConfigSync\ProjectConfigSync\ProjectConfigSync\bin\Debug\ProjectConfigSync.exe
