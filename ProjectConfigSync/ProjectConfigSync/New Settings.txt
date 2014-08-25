@@ -1,0 +1,24 @@
+Simple View:
+
+ *  Simple View
+	- Configure for: 
+		- Debug: 		
+				-Optimizations: false
+				-Debug Info: full
+				
+		- Release
+		
+		
+ *  Full View
+
+[ ] Show advanced fields
+	- ErrorReport
+	- Check for overflow / underflow
+	- Language version
+	- Generate serialization assembly
+	- Documentation file
+	- Treat warnings as errors [none (default), All, Specific Warnings:]
+	- Specific warnings: [ XmlElement WarningsAsErrors ]
+	- Warning level
+	- Error report
+	

@@ -1,566 +1,491 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Windows.Forms;
 using System.IO;
-using System.Xml;
-using System.Xml.Linq;
-using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using ProjectConfigSync.Controls;
+using ProjectConfigSync.Entities;
+using ProjectConfigSync.Helpers;
+using Timer = System.Windows.Forms.Timer;
 
 namespace ProjectConfigSync
 {
-    public partial class Form1 : Form
+    public partial class MainForm : Form
     {
         private const string FormTitle = "Project Config Sync";
         private const string FormTitleWithFile = FormTitle + " - {0}";
 
-        private string _filename = string.Empty;
-        private XmlDocument _xmlDocument = null;
-        private DataTable _dataTable = null;
+        private readonly RowCountUserControl _rowCountUserControl;
+        private readonly Timer _animateRowCountControlTimer = new Timer();
 
-        private List<string> _projectList = new List<string>();
-        private List<string> _configurationList = new List<string>();
-        private List<string> _platformList = new List<string>();
+        private DateTime _rowCountDetailsShownDateTime = DateTime.MinValue;
+        private Size _rowCountUserControlSize;
 
-        public Form1()
+        private bool _suppressTextChangedEvents = false;
+
+        public MainForm()
         {
             InitializeComponent();
 
-            ChangeFormTitle();
+            projectConfigDataGridView1.FiltersChanged += (sender, args) =>
+                {
+                    _suppressTextChangedEvents = true;
 
-            cboConfigurations.Items.Add("(All Configurations)");
+                    try
+                    {
+                        if (cboProjects.Text != args.ProjectFilter)
+                        {
+                            cboProjects.Text = args.ProjectFilter;
+                            this.RefreshProjectFilterCombo();
+                        }
+
+                        if (cboConfigurations.Text != args.ConfigurationFilter)
+                        {
+                            cboConfigurations.Text = args.ConfigurationFilter;
+                            this.RefreshConfigFilterCombo();
+                        }
+
+                        if (cboPlatforms.Text != args.PlatformFilter)
+                        {
+                            cboPlatforms.Text = args.PlatformFilter;
+                            this.RefreshPlatformFilterCombo();
+                        }
+                    }
+                    finally
+                    {
+                        _suppressTextChangedEvents = false;
+                    }
+                };
+
+            this.ChangeFormTitle();
+
+            cboConfigurations.Items.Add(ProjectConfigList.AllConfigurationsComboText);
             cboConfigurations.SelectedIndex = 0;
+            cboConfigurations.Text = ProjectConfigList.AllConfigurationsComboText;
+            cboConfigurations.GotFocus += (sender, args) => cboConfigurations.ForeColor = Color.Black;
+            cboConfigurations.LostFocus += (sender, args) => this.RefreshConfigFilterCombo();
+            cboConfigurations.PreviewKeyDown += (sender, args) => ConfigFilterPreviewKeyDown(sender, args, ProjectConfigList.AllConfigurationsComboText);
 
-            cboPlatforms.Items.Add("(All Platforms)");
+            cboPlatforms.Items.Add(ProjectConfigList.AllPlatformsComboText);
             cboPlatforms.SelectedIndex = 0;
+            cboPlatforms.Text = ProjectConfigList.AllPlatformsComboText;
+            cboPlatforms.GotFocus += (sender, args) => cboPlatforms.ForeColor = Color.Black;
+            cboPlatforms.LostFocus += (sender, args) => this.RefreshPlatformFilterCombo();
+            cboPlatforms.PreviewKeyDown += (sender, args) => ConfigFilterPreviewKeyDown(sender, args, ProjectConfigList.AllPlatformsComboText);
 
-            cboProjects.Items.Add("(All Projects)");
+            cboProjects.Items.Add(ProjectConfigList.AllProjectsComboText);
             cboProjects.SelectedIndex = 0;
+            cboProjects.Text = ProjectConfigList.AllProjectsComboText;
+            cboProjects.GotFocus += (sender, args) => cboProjects.ForeColor = Color.Black;
+            cboProjects.LostFocus += (sender, args) => this.RefreshProjectFilterCombo();
+            cboProjects.PreviewKeyDown += (sender, args) => ConfigFilterPreviewKeyDown(sender, args, ProjectConfigList.AllProjectsComboText);
+
+            this._rowCountUserControl = new RowCountUserControl();
+
+            this._rowCountUserControl.MouseLeave += RowCountUserControlMouseLeave;
+            this._rowCountUserControl.Hide();
+            this._rowCountUserControlSize = _rowCountUserControl.Size;
+            this._rowCountUserControl.Size = new Size(this._rowCountUserControl.Width, 1);
+
+            this.Controls.Add(this._rowCountUserControl);
+
+            this.projectConfigDataGridView1.RowCountsChanged += (sender, args) =>
+                {
+                    lblRowCounts.Text = string.Format("Visible: {0}, Total: {1}", projectConfigDataGridView1.TotalVisibleCount, projectConfigDataGridView1.TotalRowCount);
+                    lblRowCounts.Location = new Point(this.ClientSize.Width - lblRowCounts.Size.Width - 7, lblRowCounts.Location.Y);
+                };
+
+            this._animateRowCountControlTimer.Interval = 1;
+            this._animateRowCountControlTimer.Tick += (sender, args) =>
+                {
+                    if (_rowCountUserControl.Height < _rowCountUserControlSize.Height)
+                    {
+                        int newHeight = _rowCountUserControl.Height + 15;
+                        if (newHeight > _rowCountUserControlSize.Height)
+                        {
+                            newHeight = _rowCountUserControlSize.Height;
+                        }
+
+                        _rowCountUserControl.Size = new Size(_rowCountUserControl.Width, newHeight);
+                        _rowCountUserControl.Refresh();
+                    }
+                    else if (this._animateRowCountControlTimer.Interval == 1)
+                    {
+                        if (this.IsMouseInRowCountUsercontrol)
+                        {
+                            this._animateRowCountControlTimer.Interval = 400;
+                        }
+                        else
+                        {
+                            this.HideRowCountDetails();
+                        }
+                    }
+                    else if (!this.IsMouseInRowCountUsercontrol)
+                    {
+                        this.HideRowCountDetails();
+                    }
+                };
         }
+
+        private void ConfigFilterPreviewKeyDown(object sender, PreviewKeyDownEventArgs args, string noneSelectedText)
+        {
+            Keys k = args.KeyCode;
+
+            bool isAlphaNum = false;
+
+            if (k != Keys.Back)
+            {
+                bool isAlpha = !args.Alt && !args.Control && (k >= Keys.A && k <= Keys.Z);
+                bool d0d9 = k >= Keys.D0 && k <= Keys.D9;
+                bool numpad = k >= Keys.NumPad0 && k <= Keys.NumPad9;
+                bool isNumber = (!args.Alt && !args.Control && !args.Shift) && (d0d9 || numpad);
+
+                isAlphaNum = isAlpha || isNumber;
+            }
+
+            var combo = (sender as ComboBox);
+
+            if (!isAlphaNum || combo == null)
+            {
+                return;
+            }
+
+            combo.ForeColor = Color.Black;
+            if (string.Equals(combo.Text, noneSelectedText, StringComparison.CurrentCultureIgnoreCase))
+            {
+                combo.Text = "";
+            }
+        }
+
+
+        private void RefreshProjectFilterCombo()
+        {
+            if (string.IsNullOrEmpty(cboProjects.Text) || cboProjects.Text.Equals(ProjectConfigList.AllProjectsComboText, StringComparison.InvariantCultureIgnoreCase))
+            {
+                cboProjects.Text = ProjectConfigList.AllProjectsComboText;
+                cboProjects.ForeColor = Color.LightSlateGray;
+                cboProjects.Refresh();
+            }
+            else
+            {
+                cboProjects.ForeColor = Color.Black;
+            }
+        }
+
+        private void RefreshConfigFilterCombo()
+        {
+            if (string.IsNullOrEmpty(cboConfigurations.Text) || cboConfigurations.Text.Equals(ProjectConfigList.AllConfigurationsComboText, StringComparison.InvariantCultureIgnoreCase))
+            {
+                cboConfigurations.Text = ProjectConfigList.AllConfigurationsComboText;
+                cboConfigurations.ForeColor = Color.LightSlateGray;
+                cboConfigurations.Refresh();
+            }
+            else
+            {
+                cboConfigurations.ForeColor = Color.Black;
+            }
+        }
+
+        private void RefreshPlatformFilterCombo()
+        {
+            if (string.IsNullOrEmpty(cboPlatforms.Text) || cboPlatforms.Text.Equals(ProjectConfigList.AllPlatformsComboText, StringComparison.InvariantCultureIgnoreCase))
+            {
+                cboPlatforms.Text = ProjectConfigList.AllPlatformsComboText;
+                cboPlatforms.ForeColor = Color.LightSlateGray;
+                cboPlatforms.Refresh();
+            }
+            else
+            {
+                cboPlatforms.ForeColor = Color.Black;
+            }
+        }
+
+        private ProjectConfigList _projectConfigList = null;
 
         #region Event Handlers
         private void tsmnuOpen_Click(object sender, EventArgs e)
         {
-            using (OpenFileDialog dialog = new OpenFileDialog())
+            using (var dialog = new OpenFileDialog())
             {
                 dialog.Filter = "(*.sln;*.csproj)|*.sln;*.csproj";
-                //dialog.Filter = "C# Project Files (*.csproj)|*.csproj";
+
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
-                    FileInfo fileInfo = new FileInfo(dialog.FileName);
+                    tstrProgressBar.Style = ProgressBarStyle.Marquee;
+                    tstrProgressBar.MarqueeAnimationSpeed = 40;
+                    tstrProgressBar.Enabled = true;
+                    tstrProgressBar.Visible = true;
 
-                    switch (fileInfo.Extension.ToLower())
-                    {
-                        case ".csproj":
-                            ClearDataSource();
-                            OpenCsProj(dialog.FileName);
-                            ChangeFormTitle(dialog.FileName);
-                            BindDataSource();
-                            break;
+                    Task.Factory.StartNew(() => FileHelper.LoadFile(dialog.FileName)).ContinueWith(task =>
+                        {
+                            Thread.Sleep(400);
 
-                        case ".sln":
-                            ClearDataSource();
-                            OpenSln(dialog.FileName);
-                            ChangeFormTitle(dialog.FileName);
-                            BindDataSource();
-                            break;
-                    }
+                            Action invokeGrid = () =>
+                                {
+                                    _projectConfigList = task.Result;
+                                    projectConfigDataGridView1.DataSource = _projectConfigList;
+
+                                    cboConfigurations.DataSource = task.Result.UniqueConfigurations;
+                                    cboProjects.DataSource = task.Result.UniqueProjects;
+                                    cboPlatforms.DataSource = task.Result.UniquePlatforms;
+
+                                    Console.WriteLine(DateTime.Now.Ticks);
+
+                                    projectConfigDataGridView1.AutoResizeColumn(0, DataGridViewAutoSizeColumnMode.DisplayedCells);
+                                    projectConfigDataGridView1.AutoResizeColumn(1, DataGridViewAutoSizeColumnMode.DisplayedCells);
+                                    projectConfigDataGridView1.AutoResizeColumn(2, DataGridViewAutoSizeColumnMode.DisplayedCells);
+
+                                    Console.WriteLine(DateTime.Now.Ticks);
+
+                                    tsmnuSave.Enabled = true;
+
+                                    tstrProgressBar.Visible = false;
+                                    tstrProgressBar.Enabled = false;
+                                    tstrProgressBar.Style = ProgressBarStyle.Continuous;
+                                    tstrProgressBar.MarqueeAnimationSpeed = 0;
+                                };
+
+                            if (projectConfigDataGridView1.InvokeRequired)
+                            {
+                                projectConfigDataGridView1.BeginInvoke(new MethodInvoker(invokeGrid));
+                            }
+                            else
+                            {
+                                invokeGrid();
+                            }
+                        });
                 }
             }
         }
 
-        private void dataGridView1_CellMouseDown(object sender, DataGridViewCellMouseEventArgs e)
-        {
-            if (e.Button == MouseButtons.Right && e.ColumnIndex > 2)
-            {
-                dataGridView1.CurrentCell = dataGridView1[e.ColumnIndex, e.RowIndex];
-                contextMenuStrip1.Show(dataGridView1, dataGridView1.PointToClient(Cursor.Position));
-            }
-        }
-
-        private void tmnuCopy_Click(object sender, EventArgs e)
-        {
-            Clipboard.SetText(dataGridView1.CurrentCell.Value.ToString());
-        }
-
-        private void tmnuPaste_Click(object sender, EventArgs e)
-        {
-            dataGridView1.CurrentCell.Value = Clipboard.GetText();
-        }
-
-        private void tsmnuSave_Click(object sender, EventArgs e)
-        {
-            Save();
-        }
-
-        private void tsmnuSaveAs_Click(object sender, EventArgs e)
-        {
-            using (SaveFileDialog dialog = new SaveFileDialog())
-            {
-                dialog.Filter = "(*.csproj)|*.csproj";
-                if (dialog.ShowDialog() == DialogResult.OK)
-                {
-                    string filename = dialog.FileName;
-
-                    SaveCsProj(filename);
-
-                    ChangeFormTitle(filename);
-                }
-            }
-        }
-
-        private void cboFilters_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            FilterGrid();
-        }
-        #endregion
-
-        #region Private Methods
         private void ChangeFormTitle(string filename = null)
         {
-            if (filename == null)
+            if (string.IsNullOrEmpty(filename))
             {
                 this.Text = FormTitle;
             }
             else
             {
                 FileInfo fileInfo = new FileInfo(filename);
-                _filename = filename;
                 this.Text = string.Format(FormTitleWithFile, fileInfo.Name);
             }
         }
 
-        private void ClearDataSource()
+        private void FilterComboBoxTextChanged(object sender, EventArgs e)
         {
-            tsmnuSave.Enabled = false;
-
-            _projectList.Clear();
-            _projectList.Add("(All Projects)");
-
-            _platformList.Clear();
-            _platformList.Add("(All Platforms)");
-
-            _configurationList.Clear();
-            _configurationList.Add("(All Configurations)");
-
-            _dataTable = new DataTable();
-            _dataTable.Columns.Add("Project");
-            _dataTable.Columns.Add("Configuration");
-            _dataTable.Columns.Add("Platform");
-            _dataTable.Columns.Add("OutputPath");
-            _dataTable.Columns.Add("PlatformTarget");
-            _dataTable.Columns.Add("DebugType");
-            _dataTable.Columns.Add("DebugSymbols");
-            _dataTable.Columns.Add("DefineConstants");
-            _dataTable.Columns.Add("AllowUnsafeBlocks");
-        }
-
-        private void BindDataSource()
-        {
-            cboPlatforms.DataSource = _platformList;
-            cboProjects.DataSource = _projectList;
-            cboConfigurations.DataSource = _configurationList;
-
-            dataGridView1.DataSource = _dataTable;
-
-            tsmnuSave.Enabled = true;
-        }
-
-        private void OpenCsProj(string filename)
-        {
-            if (!File.Exists(filename) || !filename.ToLower().EndsWith(".csproj"))
-                return;
-
-            FileInfo projFileInfo = new FileInfo(filename);
-
-            _xmlDocument = new XmlDocument();
-            _xmlDocument.Load(filename);
-
-            XmlNamespaceManager xnManager = new XmlNamespaceManager(_xmlDocument.NameTable);
-            xnManager.AddNamespace("pr", "http://schemas.microsoft.com/developer/msbuild/2003");
-
-            XmlNodeList xmlNodeList = _xmlDocument.SelectNodes("//pr:PropertyGroup", xnManager);
-            Regex configNodeTest = new Regex(@"^\s*'\$\(Configuration\)\|\$\(Platform\)' == '([A-Za-z0-9]+)\|([A-Za-z0-9]+)'\s*$");
-
-            foreach (XmlNode node in xmlNodeList)
+            if (this._suppressTextChangedEvents)
             {
-                var conditionAttr = node.Attributes["Condition"];
+                return;
+            }
 
-                if (conditionAttr != null && conditionAttr.Value != null) //configNodeTest.IsMatch(conditionAttr.Value))
+            this.UpdateFilterState();
+        }
+
+        private void UpdateFilterState()
+        {
+            string projectFilter = null;
+            if (!string.IsNullOrWhiteSpace(cboProjects.Text) && cboProjects.Text.Trim() != ProjectConfigList.AllProjectsComboText)
+            {
+                projectFilter = cboProjects.Text.Trim();
+            }
+
+            string configFilter = null;
+            if (!string.IsNullOrWhiteSpace(cboConfigurations.Text) && cboConfigurations.Text.Trim() != ProjectConfigList.AllConfigurationsComboText)
+            {
+                configFilter = cboConfigurations.Text.Trim();
+            }
+
+            string platformFilter = null;
+            if (!string.IsNullOrWhiteSpace(cboPlatforms.Text) && cboPlatforms.Text.Trim() != ProjectConfigList.AllPlatformsComboText)
+            {
+                platformFilter = cboPlatforms.Text.Trim();
+            }
+
+            btnDisableFilters.Enabled = !string.IsNullOrEmpty(platformFilter) ||
+                                        !string.IsNullOrEmpty(configFilter) ||
+                                        !string.IsNullOrEmpty(projectFilter);
+
+            projectConfigDataGridView1.SetFilters(projectFilter, configFilter, platformFilter);
+        }
+
+        private void LabelRowCountMouseEnter(object sender, EventArgs e)
+        {
+            lblRowCounts.BackColor = Color.LightSlateGray;
+
+            Task.Factory.StartNew(() =>
                 {
-                    var matches = configNodeTest.Match(conditionAttr.Value);
-                    if (matches.Groups.Count > 1)
-                    {
-                        string configuration = matches.Groups[1].Value;
-                        string platform = matches.Groups[2].Value;
-
-                        if (!_projectList.Contains(projFileInfo.Name))
-                            _projectList.Add(projFileInfo.Name);
-
-                        if (!_platformList.Contains(platform))
-                            _platformList.Add(platform);
-
-                        if (!_configurationList.Contains(configuration))
-                            _configurationList.Add(configuration);
-
-                        DataRow dataRow = _dataTable.NewRow();
-                        dataRow["Project"] = projFileInfo.Name;
-                        dataRow["Configuration"] = configuration;
-                        dataRow["Platform"] = platform;
-
-                        foreach (XmlNode childNode in node.ChildNodes)
+                    Thread.Sleep(400);
+                    Action action = () =>
                         {
-                            switch (childNode.LocalName.ToLower())
+                            this._rowCountUserControl.Size = new Size(this._rowCountUserControl.Width, 1);
+                            this._animateRowCountControlTimer.Interval = 1;
+                            this._animateRowCountControlTimer.Start();
+
+                            var mouseToLabel = lblRowCounts.PointToClient(Cursor.Position);
+                            var labelRectangle = lblRowCounts.ClientRectangle;
+                            labelRectangle.Inflate(4, 4);
+                            var labelContainsMouse = labelRectangle.Contains(mouseToLabel);
+
+                            if (!labelContainsMouse)
                             {
-                                case "outputpath":
-                                case "allowunsafeblocks":
-                                case "defineconstants":
-                                case "debugsymbols":
-                                case "platformtarget":
-                                case "debugtype":
-                                    dataRow[childNode.LocalName] = childNode.InnerText;
-                                    break;
-
+                                return;
                             }
-                        }
 
-                        _dataTable.Rows.Add(dataRow);
-                    }
-                }
-            }
-        }
+                            this._rowCountUserControl.Anchor = AnchorStyles.None;
+                            this._rowCountUserControl.Location = new Point(this.Width - this._rowCountUserControl.Width - 22, this.lblRowCounts.Location.Y + 2);
+                            this._rowCountUserControl.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+                            this._rowCountUserControl.BringToFront();
 
-        private void OpenSln(string filename)
-        {
-            List<string> projects = GetProjectsFromSolution(filename);
+                            if (this._rowCountUserControl.Visible)
+                            {
+                                return;
+                            }
 
-            foreach (string project in projects)
-            {
-                    OpenCsProj(project);
-            }
-        }
+                            this._rowCountUserControl.Show();
+                            this._rowCountUserControl.Visible = true;
+                            this._rowCountDetailsShownDateTime = DateTime.Now;
+                            this._rowCountUserControl.BringToFront();
+                        };
 
-        private List<string> GetProjectsFromSolution(string filename)
-        {
-            List<string> returnValue = new List<string>();
-
-            string[] fileText = File.ReadAllLines(filename);
-
-            FileInfo slnFileInfo = new FileInfo(filename);
-            string slnDirectory = slnFileInfo.DirectoryName;
-
-            Regex projectLineTest = new Regex("^\\s*Project\\(.*?\\=\\s*\\\".*?\\\",\\s*\\\"(.*?)\\\"");
-
-            foreach (string line in fileText)
-            {
-                var matches = projectLineTest.Match(line);
-
-                if (matches.Groups.Count > 1)
-                {
-                    string projPath = Path.Combine(slnDirectory, matches.Groups[1].Value);
-                    returnValue.Add(projPath);
-                }
-            }
-
-            return returnValue;
-        }
-
-        private void SaveSln(string filename)
-        {
-            List<string> projects = GetProjectsFromSolution(filename);
-
-            foreach (string project in projects)
-            {
-                SaveCsProj(project);
-            }
-        }
-
-        private void Save()
-        {
-            DialogResult dialogResult = MessageBox.Show("Warning! By continuing, you are going to be modifying your CSPROJ/SLN files.\r\n\r\nIf these are checked into source control, it's probably a good idea to check them out first (especially if you use TFS or something that causes the files to be marked as read-only).\r\n\r\nAlso, if these files are open in Visual Studio, you should close them.", "Warning", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
-            if (dialogResult != DialogResult.OK)
-                return;
-
-            FileInfo fileInfo = new FileInfo(_filename);
-
-            switch (fileInfo.Extension.ToLower())
-            {
-                case ".csproj":
-                    SaveCsProj(_filename);
-                    break;
-
-                case ".sln":
-                    SaveSln(_filename);
-                    break;
-            }
-        }
-
-        //private void SaveCsProj(string filename)
-        //{
-        //    FileInfo projFileInfo = new FileInfo(filename);
-
-        //    XmlNamespaceManager xnManager = new XmlNamespaceManager(_xmlDocument.NameTable);
-        //    xnManager.AddNamespace("pr", "http://schemas.microsoft.com/developer/msbuild/2003");
-
-        //    XmlNodeList xmlNodeList = _xmlDocument.SelectNodes("//pr:PropertyGroup", xnManager);
-        //    Regex configNodeTest = new Regex(@"^\s*'\$\(Configuration\)\|\$\(Platform\)' == '([A-Za-z0-9]+)\|([A-Za-z0-9]+)'\s*$");
-
-        //    bool fileChanged = false;
-
-        //    foreach (XmlNode node in xmlNodeList)
-        //    {
-        //        var conditionAttr = node.Attributes["Condition"];
-
-        //        if (conditionAttr != null && conditionAttr.Value != null)
-        //        {
-        //            var matches = configNodeTest.Match(conditionAttr.Value);
-        //            if (matches.Groups.Count > 1)
-        //            {
-        //                string configuration = matches.Groups[1].Value;
-        //                string platform = matches.Groups[2].Value;
-        //                int index = GetConfigRowIndex(projFileInfo.Name, configuration, platform);
-
-        //                if (index > -1)
-        //                {
-        //                    foreach (XmlNode childNode in node.ChildNodes)
-        //                    {
-        //                        string newValue = null;
-
-        //                        switch (childNode.LocalName.ToLower())
-        //                        {
-        //                            case "outputpath":
-        //                                newValue = _dataTable.Rows[index]["OutputPath"].ToString();
-        //                                break;
-
-        //                            case "allowunsafeblocks":
-        //                                newValue = _dataTable.Rows[index]["AllowUnsafeBlocks"].ToString();
-        //                                break;
-
-        //                            case "defineconstants":
-        //                                newValue = _dataTable.Rows[index]["DefineConstants"].ToString();
-        //                                break;
-
-        //                            case "debugsymbols":
-        //                                newValue = _dataTable.Rows[index]["DebugSymbols"].ToString();
-        //                                break;
-
-        //                            case "platformtarget":
-        //                                newValue = _dataTable.Rows[index]["PlatformTarget"].ToString();
-        //                                break;
-
-        //                            case "debugtype":
-        //                                newValue = _dataTable.Rows[index]["DebugType"].ToString();
-        //                                break;
-
-        //                        }
-
-        //                        if (newValue != null && childNode.InnerText != newValue)
-        //                        {
-        //                            childNode.InnerText = newValue;
-        //                            fileChanged = true;
-        //                        }
-        //                    }
-        //                }
-        //            }
-        //        }
-        //    }
-
-        //    if (fileChanged)
-        //    {
-        //        _xmlDocument.Save(filename);
-        //    }
-        //}
-
-        private void SaveCsProj(string filename)
-        {
-            _xmlDocument.Load(filename);
-
-            FileInfo projFileInfo = new FileInfo(filename);
-
-            XmlNamespaceManager xnManager = new XmlNamespaceManager(_xmlDocument.NameTable);
-            xnManager.AddNamespace("pr", "http://schemas.microsoft.com/developer/msbuild/2003");
-
-            XmlNodeList xmlNodeList = _xmlDocument.SelectNodes("//pr:PropertyGroup", xnManager);
-            Regex configNodeTest = new Regex(@"^\s*'\$\(Configuration\)\|\$\(Platform\)' == '([A-Za-z0-9]+)\|([A-Za-z0-9]+)'\s*$");
-
-            bool fileChanged = false;
-
-            foreach (XmlNode node in xmlNodeList)
-            {
-                var conditionAttr = node.Attributes["Condition"];
-
-                if (conditionAttr != null && conditionAttr.Value != null)
-                {
-                    var matches = configNodeTest.Match(conditionAttr.Value);
-                    if (matches.Groups.Count > 1)
+                    if (!_rowCountUserControl.Visible && (IsMouseInRowCountLabel || IsMouseInRowCountUsercontrol))
                     {
-                        string configuration = matches.Groups[1].Value;
-                        string platform = matches.Groups[2].Value;
-                        
-                        int index = GetConfigRowIndex(projFileInfo.Name, configuration, platform);
-
-                        if (index > -1)
+                        if (lblRowCounts.InvokeRequired)
                         {
-                            foreach (DataColumn column in _dataTable.Columns)
-                            {
-                                if (column.ColumnName != "Project" && column.ColumnName != "Platform" && column.ColumnName != "Configuration")
-                                {
-                                    bool found = false;
-                                    string newValue = _dataTable.Rows[index][column.ColumnName].ToString();
-
-                                    foreach (XmlNode childNode in node.ChildNodes)
-                                    {
-                                        if (column.ColumnName == childNode.LocalName)
-                                        {
-                                            found = true;
-
-                                            if (childNode.InnerText != newValue)
-                                            {
-                                                childNode.InnerText = newValue;
-                                                fileChanged = true;
-                                            }
-
-                                            break;
-                                        }
-                                    }
-
-                                    if (!found && !string.IsNullOrWhiteSpace(newValue))
-                                    {
-                                        XmlElement element = _xmlDocument.CreateElement(column.ColumnName, "http://schemas.microsoft.com/developer/msbuild/2003");
-                                        element.InnerText = _dataTable.Rows[index][column.ColumnName].ToString();
-                                        node.AppendChild(element);
-                                        fileChanged = true;
-                                    }
-                                }
-                            }
+                            lblRowCounts.BeginInvoke(new MethodInvoker(action));
                         }
-                        
-
-                        //if (index > -1)
-                        //{
-                        //    foreach (XmlNode childNode in node.ChildNodes)
-                        //    {
-                        //        string newValue = null;
-
-                        //        switch (childNode.LocalName.ToLower())
-                        //        {
-                        //            case "outputpath":
-                        //                newValue = _dataTable.Rows[index]["OutputPath"].ToString();
-                        //                break;
-
-                        //            case "allowunsafeblocks":
-                        //                newValue = _dataTable.Rows[index]["AllowUnsafeBlocks"].ToString();
-                        //                break;
-
-                        //            case "defineconstants":
-                        //                newValue = _dataTable.Rows[index]["DefineConstants"].ToString();
-                        //                break;
-
-                        //            case "debugsymbols":
-                        //                newValue = _dataTable.Rows[index]["DebugSymbols"].ToString();
-                        //                break;
-
-                        //            case "platformtarget":
-                        //                newValue = _dataTable.Rows[index]["PlatformTarget"].ToString();
-                        //                break;
-
-                        //            case "debugtype":
-                        //                newValue = _dataTable.Rows[index]["DebugType"].ToString();
-                        //                break;
-
-                        //        }
-
-                        //        if (newValue != null && childNode.InnerText != newValue)
-                        //        {
-                        //            childNode.InnerText = newValue;
-                        //            fileChanged = true;
-                        //        }
-                        //    }
-                        //}
+                        else
+                        {
+                            action();
+                        }
                     }
-                }
-            }
-
-            if (fileChanged)
-            {
-                _xmlDocument.Save(filename);
-            }
+                });
         }
 
-
-        private int GetConfigRowIndex(string project, string configuration, string platform)
+        private void LabelRowCountMouseLeave(object sender, EventArgs e)
         {
-            for (int i = 0; i < _dataTable.Rows.Count; i++)
-            {
-                DataRow row = _dataTable.Rows[i];
-
-                if (row["Project"].ToString() == project && row["Configuration"].ToString() == configuration && row["Platform"].ToString() == platform)
-                {
-                    return i;
-                }
-            }
-
-            return -1;
+            this.HideRowCountDetails();
         }
 
-        //private int GetTableRowIndex(string project, string configuration, string platform)
-        //{
-            
-        //}
-
-        private void FilterGrid()
+        private void RowCountUserControlMouseLeave(object sender, EventArgs e)
         {
-            if (_dataTable == null)
+            this.HideRowCountDetails();
+        }
+
+        private void HideRowCountDetails()
+        {
+            lblRowCounts.BackColor = SystemColors.Control;
+
+            if (this.IsMouseInRowCountLabel || this.IsMouseInRowCountUsercontrol)
+            {
                 return;
-
-            EnumerableRowCollection<DataRow> rows = _dataTable.AsEnumerable();
-
-            if (cboProjects.SelectedIndex > 0)
-            {
-                rows = from d in rows
-                       where d.Field<string>("Project") == cboProjects.SelectedValue.ToString()
-                       select d;
             }
 
-            if (cboConfigurations.SelectedIndex > 0)
+            if (!this._rowCountUserControl.Visible || !((DateTime.Now - this._rowCountDetailsShownDateTime).TotalMilliseconds >= 400))
             {
-                rows = from d in rows
-                       where d.Field<string>("Configuration") == cboConfigurations.SelectedValue.ToString()
-                       select d;
+                return;
             }
 
-            if (cboPlatforms.SelectedIndex > 0)
-            {
-                rows = from d in rows
-                       where d.Field<string>("Platform") == cboPlatforms.SelectedValue.ToString()
-                       select d;
-            }
-
-            dataGridView1.DataSource = rows.AsDataView();
+            this._rowCountUserControl.Visible = false;
+            this._rowCountUserControl.Size = new Size(this._rowCountUserControl.Width, 1);
+            this._rowCountUserControl.Hide();
+            this.lblRowCounts.BorderStyle = BorderStyle.None;
         }
-        #endregion
 
-        private void tmnuCopyToAllRows_Click(object sender, EventArgs e)
+        public bool IsMouseInRowCountLabel
         {
-            string currentValue = dataGridView1.CurrentCell.Value.ToString();
-            string currentConfig = dataGridView1.Rows[dataGridView1.CurrentCell.RowIndex].Cells[0].Value.ToString();
-
-            foreach (DataGridViewRow row in dataGridView1.Rows)
+            get
             {
-                if (row.Index != dataGridView1.CurrentRow.Index)
+                if (lblRowCounts == null)
                 {
-                    row.Cells[dataGridView1.CurrentCell.ColumnIndex].Value = currentValue;
+                    return false;
                 }
+
+                bool returnValue = false;
+                Action action = () =>
+                {
+                    var position = Cursor.Position;
+                    var mouseToLabel = lblRowCounts.PointToClient(position);
+                    var labelRectangle = lblRowCounts.ClientRectangle;
+
+                    labelRectangle.Inflate(4, 4);
+
+                    returnValue = labelRectangle.Contains(mouseToLabel);
+                };
+
+                if (lblRowCounts.InvokeRequired)
+                {
+                    lblRowCounts.Invoke(action);
+                }
+                else
+                {
+                    action();
+                }
+
+                return returnValue;
             }
+        }
+
+        public bool IsMouseInRowCountUsercontrol
+        {
+            get
+            {
+                if (_rowCountUserControl == null)
+                {
+                    return false;
+                }
+
+                bool returnValue = false;
+                Action action = () =>
+                {
+                    var position = Cursor.Position;
+                    var mouseToControl = _rowCountUserControl.PointToClient(position);
+                    var clientRectangle = _rowCountUserControl.ClientRectangle;
+
+                    clientRectangle.Inflate(14, 14);
+
+                    returnValue = clientRectangle.Contains(mouseToControl);
+                };
+
+                if (_rowCountUserControl.InvokeRequired)
+                {
+                    _rowCountUserControl.Invoke(action);
+                }
+                else
+                {
+                    action();
+                }
+
+                return returnValue;
+            }
+        }
+
+        private void aboutToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void btnDisableFilters_Click(object sender, EventArgs e)
+        {
+            projectConfigDataGridView1.DisableFilters();
+        }
+
+        private void tsmnuSave_Click(object sender, EventArgs e)
+        {
+            this.Save(FileHelper.CurrentFilename);
+        }
+
+        private void Save(string filename = null)
+        {
+            FileHelper.SaveFile(filename, filename, (ProjectConfigList)projectConfigDataGridView1.DataSource);
         }
 
         private void tsmnuExit_Click(object sender, EventArgs e)
         {
-            this.Close();
+            Application.Exit();
         }
+
+        #endregion
+
     }
 }

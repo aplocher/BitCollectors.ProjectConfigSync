@@ -1,9 +1,16 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2012
+# Visual Studio 2013
+VisualStudioVersion = 12.0.30324.0
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ProjectConfigSync", "ProjectConfigSync\ProjectConfigSync.csproj", "{824C8EAC-46D5-4D90-A4C6-7A6C8CFC3C06}"
 EndProject
 Project("{930C7802-8A8C-48F9-8165-68863BCCD9DD}") = "ProjectConfigSync.Setup", "ProjectConfigSync.Setup\ProjectConfigSync.Setup.wixproj", "{F47DBDE6-4386-4E87-B23B-BBEFF928C4F2}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Documents", "Documents", "{8A1C7314-CA1E-4D8E-AE98-D17B78DE615F}"
+	ProjectSection(SolutionItems) = preProject
+		Todo.txt = Todo.txt
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -17,6 +24,7 @@ Global
 		{824C8EAC-46D5-4D90-A4C6-7A6C8CFC3C06}.Release|x86.Build.0 = Release|x86
 		{F47DBDE6-4386-4E87-B23B-BBEFF928C4F2}.Debug|x86.ActiveCfg = Debug|x86
 		{F47DBDE6-4386-4E87-B23B-BBEFF928C4F2}.Debug|x86.Build.0 = Debug|x86
+		{F47DBDE6-4386-4E87-B23B-BBEFF928C4F2}.Debug|x86.Deploy.0 = Debug|x86
 		{F47DBDE6-4386-4E87-B23B-BBEFF928C4F2}.Release|x86.ActiveCfg = Release|x86
 		{F47DBDE6-4386-4E87-B23B-BBEFF928C4F2}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
